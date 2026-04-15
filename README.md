@@ -75,6 +75,11 @@ print("PV premiums:", round(result["pv_premiums"], 2))
 print("PV outflows:", round(result["pv_outflows"], 2))
 print("PV profit margin:", round(result["profit_margin"], 4))
 print("Reserve schedule:", result["reserve_schedule"])
+# Expected from this sample:
+# Annual premium: 233.45
+# PV premiums: 837.86
+# PV outflows: 754.07
+# PV profit margin: 0.1
 ```
 
 Returned fields:
