@@ -32,7 +32,7 @@ pv = present_value_calendar_year(
     annual_rate_percents=[7, 6.5, 7.2, 6.8, 7.0],
     valuation_date=date(2026, 4, 15),
 )
- print(round(pv, 2))  # 1439.06
+print(round(pv, 2))  # 1439.06
 ```
 
 Calendar-year assumptions:
@@ -48,3 +48,39 @@ Calendar-year formula:
 `PV = Σ [CF_date / DF(valuation_date -> payment_date)]`
 
 where `DF` compounds piecewise by calendar year using that year's annual rate.
+
+## Life insurance valuation (calendar-year basis)
+
+Use `life_insurance_valuation_calendar_year(...)` to:
+- value projected outflows (expenses, charges, commissions, lapse/death benefits),
+- solve for a level annual premium that achieves a target PV profit margin (default 10%),
+- produce a prospective reserve schedule from valuation date and each Jan 1.
+
+```python
+from datetime import date
+from finance import life_insurance_valuation_calendar_year
+
+result = life_insurance_valuation_calendar_year(
+    expenses_beginning=[20, 18, 17, 16, 15],
+    charges_mid_year=[8, 8, 8, 7, 7],
+    commissions_beginning=[40, 10, 8, 6, 5],
+    lapse_death_benefits_end_year=[120, 130, 145, 160, 175],
+    annual_rate_percents=[5.0, 5.2, 5.1, 5.0, 4.8],
+    target_profit_margin=0.10,
+    valuation_date=date(2026, 4, 15),
+)
+
+print("Annual premium:", round(result["annual_premium"], 2))
+print("PV premiums:", round(result["pv_premiums"], 2))
+print("PV outflows:", round(result["pv_outflows"], 2))
+print("PV profit margin:", round(result["profit_margin"], 4))
+print("Reserve schedule:", result["reserve_schedule"])
+```
+
+Returned fields:
+- `annual_premium`
+- `pv_premiums`
+- `pv_outflows`
+- `pv_profit`
+- `profit_margin`
+- `reserve_schedule` (list of `(date_iso, reserve)` tuples)
