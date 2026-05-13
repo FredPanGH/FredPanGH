@@ -7,6 +7,7 @@ from ifrs17_csm import (
     build_csm_rollforward_schedule,
     build_ifrs17_csm_disclosure,
     calculate_initial_csm,
+    project_csm_over_horizon,
     roll_forward_csm_year,
 )
 
@@ -75,6 +76,31 @@ class IFRS17CSMTests(unittest.TestCase):
         self.assertEqual(result["csm_before_release"], 0.0)
         self.assertEqual(result["closing_csm"], 0.0)
         self.assertEqual(result["loss_component_expense"], 15.0)
+
+    def test_project_fifty_year_horizon(self) -> None:
+        coverage_units = [2.0] * 50
+        schedule = project_csm_over_horizon(
+            opening_csm=100.0,
+            projection_years=50,
+            locked_in_rates=0.0,
+            future_service_adjustments=0.0,
+            coverage_units_provided=coverage_units,
+        )
+
+        self.assertEqual(len(schedule), 50)
+        self.assertEqual(schedule[0]["year"], "Year1")
+        self.assertEqual(schedule[-1]["year"], "Year50")
+        self.assertTrue(math.isclose(float(schedule[-1]["closing_csm"]), 0.0, abs_tol=1e-9))
+
+    def test_projection_years_above_default_limit_raises(self) -> None:
+        with self.assertRaises(ValueError):
+            project_csm_over_horizon(
+                opening_csm=100.0,
+                projection_years=51,
+                locked_in_rates=0.0,
+                future_service_adjustments=0.0,
+                coverage_units_provided=[1.0] * 51,
+            )
 
 
 if __name__ == "__main__":

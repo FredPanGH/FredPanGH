@@ -22,6 +22,7 @@ from ifrs17_csm import (
     calculate_initial_csm,
     build_csm_rollforward_schedule,
     build_ifrs17_csm_disclosure,
+    project_csm_over_horizon,
 )
 
 initial = calculate_initial_csm(
@@ -45,4 +46,18 @@ disclosure_rows = build_ifrs17_csm_disclosure(schedule)
 print(initial)
 print(schedule)
 print(disclosure_rows)
+```
+
+## 50-year projection usage
+
+```python
+from ifrs17_csm import project_csm_over_horizon
+
+fifty_year_schedule = project_csm_over_horizon(
+    opening_csm=100.0,
+    projection_years=50,
+    locked_in_rates=0.03,  # scalar repeated across all years
+    future_service_adjustments=[0.0] * 50,
+    coverage_units_provided=[2.0] * 50,  # totals inferred as runoff
+)
 ```

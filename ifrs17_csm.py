@@ -10,7 +10,10 @@ This module implements reusable functions for:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Sequence
+
+
+DEFAULT_MAX_PROJECTION_YEARS = 50
 
 
 @dataclass(frozen=True)
@@ -158,6 +161,129 @@ def build_ifrs17_csm_disclosure(schedule: Iterable[dict[str, float | str]]) -> l
             }
         )
     return disclosure_rows
+
+
+def _is_sequence_like(value: object) -> bool:
+    """Return True for non-string sequence-like values."""
+
+    return isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+
+
+def _expand_numeric_assumption(
+    *,
+    name: str,
+    assumption: float | Sequence[float],
+    projection_years: int,
+) -> list[float]:
+    """Expand a scalar assumption or validate a per-year assumption series."""
+
+    if _is_sequence_like(assumption):
+        values = [float(value) for value in assumption]
+        if len(values) != projection_years:
+            raise ValueError(f"{name} must have exactly {projection_years} values")
+        return values
+    return [float(assumption)] * projection_years
+
+
+def _expand_optional_opening_overrides(
+    *,
+    opening_csm_overrides: Sequence[float | None] | None,
+    projection_years: int,
+) -> list[float | None]:
+    """Validate per-year opening CSM overrides."""
+
+    if opening_csm_overrides is None:
+        return [None] * projection_years
+    if len(opening_csm_overrides) != projection_years:
+        raise ValueError("opening_csm_overrides must have one value per projection year")
+    return list(opening_csm_overrides)
+
+
+def _infer_coverage_units_total_start(coverage_units_provided: Sequence[float]) -> list[float]:
+    """Infer coverage units at period start from future coverage runoff."""
+
+    inferred: list[float] = []
+    remaining = sum(coverage_units_provided)
+    for provided in coverage_units_provided:
+        inferred.append(remaining)
+        remaining -= provided
+    return inferred
+
+
+def project_csm_over_horizon(
+    *,
+    opening_csm: float,
+    projection_years: int,
+    locked_in_rates: float | Sequence[float],
+    future_service_adjustments: float | Sequence[float] = 0.0,
+    coverage_units_provided: Sequence[float] | float,
+    coverage_units_total_start: Sequence[float] | None = None,
+    opening_csm_overrides: Sequence[float | None] | None = None,
+    max_projection_years: int = DEFAULT_MAX_PROJECTION_YEARS,
+    year_prefix: str = "Year",
+) -> list[dict[str, float | str]]:
+    """Run a long-horizon CSM projection (supports up to 50 years by default).
+
+    Parameters may be provided as:
+      - scalar values: reused for each year (for rates and adjustments);
+      - per-year series: one value per projection year.
+
+    Coverage units total at start can be passed directly, or inferred from
+    `coverage_units_provided` as a runoff pattern.
+    """
+
+    if projection_years <= 0:
+        raise ValueError("projection_years must be > 0")
+    if projection_years > max_projection_years:
+        raise ValueError(
+            f"projection_years cannot exceed {max_projection_years}; "
+            "pass a higher max_projection_years if required"
+        )
+
+    rates = _expand_numeric_assumption(
+        name="locked_in_rates",
+        assumption=locked_in_rates,
+        projection_years=projection_years,
+    )
+    adjustments = _expand_numeric_assumption(
+        name="future_service_adjustments",
+        assumption=future_service_adjustments,
+        projection_years=projection_years,
+    )
+    provided = _expand_numeric_assumption(
+        name="coverage_units_provided",
+        assumption=coverage_units_provided,
+        projection_years=projection_years,
+    )
+    overrides = _expand_optional_opening_overrides(
+        opening_csm_overrides=opening_csm_overrides,
+        projection_years=projection_years,
+    )
+
+    if any(value < 0 for value in provided):
+        raise ValueError("coverage_units_provided values must be >= 0")
+
+    if coverage_units_total_start is None:
+        totals = _infer_coverage_units_total_start(provided)
+    else:
+        totals = [float(value) for value in coverage_units_total_start]
+        if len(totals) != projection_years:
+            raise ValueError("coverage_units_total_start must have one value per projection year")
+
+    assumptions: list[CSMYearInputs] = []
+    for idx in range(projection_years):
+        assumptions.append(
+            CSMYearInputs(
+                year_label=f"{year_prefix}{idx + 1}",
+                locked_in_rate=rates[idx],
+                future_service_adjustment=adjustments[idx],
+                coverage_units_provided=provided[idx],
+                coverage_units_total_start=totals[idx],
+                opening_csm_override=overrides[idx],
+            )
+        )
+
+    return build_csm_rollforward_schedule(opening_csm=opening_csm, years=assumptions)
 
 
 def example_three_year_assumptions() -> list[CSMYearInputs]:
