@@ -10,7 +10,7 @@ Small Python helpers for IFRS 17 contractual service margin (CSM) examples.
 ## Run tests
 
 ```bash
-python -m unittest -v
+python3 -m unittest -v
 ```
 
 ## Example usage
