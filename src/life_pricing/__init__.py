@@ -19,6 +19,12 @@ from .assumptions import MortalityAssumptions, PricingAssumptions
 from .product import TermLifeProduct
 from .cashflow import CashflowProjection, project_cashflows
 from .pricing import PricingResult, price_policy
+from .traditional import (
+    TraditionalLifeProduct,
+    default_surrender_schedule,
+    price_traditional_policy,
+    project_traditional_cashflows,
+)
 
 __all__ = [
     "MortalityAssumptions",
@@ -28,4 +34,8 @@ __all__ = [
     "project_cashflows",
     "PricingResult",
     "price_policy",
+    "TraditionalLifeProduct",
+    "default_surrender_schedule",
+    "price_traditional_policy",
+    "project_traditional_cashflows",
 ]
